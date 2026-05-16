@@ -1,69 +1,48 @@
 #!/bin/bash
+# Script för att skapa användare med katalogstruktur och welcome-fil
 
-# ============================================
-# Script för att skapa användare automatiskt
-# Skapar hemkataloger, undermappar och welcome.txt
-# ============================================
-
-# Kontrollera att scriptet körs som root
+# Kontrollera root
 if [ "$EUID" -ne 0 ]; then
-    echo "Fel: Du måste köra scriptet som root."
-    exit 1
+  echo "Fel: Scriptet måste köras som root."
+  exit 1
 fi
 
-# Kontrollera att minst en användare skickats in
-if [ $# -eq 0 ]; then
-    echo "Användning: $0 användare1 användare2 ..."
-    exit 1
+# Kontrollera argument
+if [ "$#" -lt 1 ]; then
+  echo "Användning: ./create_users.sh användare1 användare2"
+  exit 1
 fi
 
-# Loopa igenom alla användarnamn som skickats in
-for USERNAME in "$@"
-do
-    # Kontrollera om användaren redan finns
-    if id "$USERNAME" &>/dev/null; then
-        echo "Användaren $USERNAME finns redan."
-        continue
-    fi
+# Hämta befintliga användare
+existing_users=$(getent passwd | cut -d: -f1)
 
-    echo "Skapar användare: $USERNAME"
+for username in "$@"; do
 
-    # Skapa användaren med hemkatalog
-    useradd -m "$USERNAME"
+  if id "$username" &>/dev/null; then
+    echo "Användaren $username finns redan."
+    continue
+  fi
 
-    # Sätt standardlösenord (kan ändras senare)
-    echo "$USERNAME:password123" | chpasswd
+  # Skapa användare med hemkatalog
+  useradd -m -s /bin/bash "$username"
 
-    # Sökväg till hemkatalog
-    HOME_DIR="/home/$USERNAME"
+  home_dir="/home/$username"
 
-    # Skapa undermappar
-    mkdir -p "$HOME_DIR/Documents"
-    mkdir -p "$HOME_DIR/Downloads"
-    mkdir -p "$HOME_DIR/Work"
+  # Skapa mappar
+  mkdir -p "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
 
-    # Ägarskap
-    chown -R "$USERNAME:$USERNAME" "$HOME_DIR"
+  # Sätt rättigheter
+  chmod 700 "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
+  chown -R "$username:$username" "$home_dir"
 
-    # Behörigheter:
-    # Endast ägaren får läsa/skriva/köra
-    chmod 700 "$HOME_DIR/Documents"
-    chmod 700 "$HOME_DIR/Downloads"
-    chmod 700 "$HOME_DIR/Work"
+  # Skapa welcome.txt
+  {
+    echo "Välkommen $username"
+    echo "Andra användare i systemet:"
+    echo "$existing_users"
+  } > "$home_dir/welcome.txt"
 
-    # Skapa welcome.txt
-    WELCOME_FILE="$HOME_DIR/welcome.txt"
+  chmod 600 "$home_dir/welcome.txt"
+  chown "$username:$username" "$home_dir/welcome.txt"
 
-    echo "Välkommen $USERNAME" > "$WELCOME_FILE"
-    echo "" >> "$WELCOME_FILE"
-    echo "Andra användare i systemet:" >> "$WELCOME_FILE"
-
-    # Lista alla andra användare
-    cut -d: -f1 /etc/passwd | grep -v "^$USERNAME$" >> "$WELCOME_FILE"
-
-    # Rätt ägare och behörigheter på filen
-    chown "$USERNAME:$USERNAME" "$WELCOME_FILE"
-    chmod 600 "$WELCOME_FILE"
-
-    echo "Användare $USERNAME skapad klart."
 done
