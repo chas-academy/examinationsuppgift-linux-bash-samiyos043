@@ -1,33 +1,48 @@
 #!/bin/bash
-# Skapar användare med katalogstruktur och welcome-fil
+# Script för att skapa användare med katalogstruktur och welcome-fil
 
 # Kontrollera root
 if [ "$EUID" -ne 0 ]; then
-  echo "Scriptet måste köras som root"
+  echo "Fel: Scriptet måste köras som root."
   exit 1
 fi
 
-# Kontrollera att minst en användare skickas in
+# Kontrollera argument
 if [ "$#" -lt 1 ]; then
-  echo "Användning: ./create_users.sh user1 user2"
+  echo "Användning: ./create_users.sh användare1 användare2"
   exit 1
 fi
+
+# Hämta befintliga användare
+existing_users=$(getent passwd | cut -d: -f1)
 
 for username in "$@"; do
-  # Skapa användare
-  useradd -m "$username"
 
-  home="/home/$username"
+  if id "$username" &>/dev/null; then
+    echo "Användaren $username finns redan."
+    continue
+  fi
+
+  # Skapa användare med hemkatalog
+  useradd -m -s /bin/bash "$username"
+
+  home_dir="/home/$username"
 
   # Skapa mappar
-  mkdir "$home/Documents" "$home/Downloads" "$home/Work"
+  mkdir -p "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
 
-  # Rättigheter (endast ägare)
-  chmod 700 "$home/Documents" "$home/Downloads" "$home/Work"
+  # Sätt rättigheter
+  chmod 700 "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
+  chown -R "$username:$username" "$home_dir"
 
-  # Welcome-fil
-  echo "Välkommen $username" > "$home/welcome.txt"
+  # Skapa welcome.txt
+  {
+    echo "Välkommen $username"
+    echo "Andra användare i systemet:"
+    echo "$existing_users"
+  } > "$home_dir/welcome.txt"
 
-  # Ägarskap
-  chown -R "$username:$username" "$home"
+  chmod 600 "$home_dir/welcome.txt"
+  chown "$username:$username" "$home_dir/welcome.txt"
+
 done
