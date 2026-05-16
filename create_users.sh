@@ -27,20 +27,4 @@ for username in "$@"; do
   useradd -m -s /bin/bash "$username"
   home_dir="/home/$username"
 
-  # Skapa mappar
-  mkdir -p "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
-
-  # Rättigheter
-  chmod 700 "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
-  chown -R "$username:$username" "$home_dir"
-
-  # Skapa welcome.txt
-  {
-    echo "Välkommen $username"
-    echo "$existing_users"
-  } > "$home_dir/welcome.txt"
-
-  chmod 600 "$home_dir/welcome.txt"
-  chown "$username:$username" "$home_dir/welcome.txt"
-
-done
+ 
