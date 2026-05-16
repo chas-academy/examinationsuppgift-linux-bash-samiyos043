@@ -25,7 +25,7 @@ for username in "$@"; do
   fi
 
   # Skapa användare med hemkatalog
-  useradd -m "$username"
+  useradd -m -s /bin/bash "$username"
 
   home_dir="/home/$username"
 
@@ -40,13 +40,12 @@ for username in "$@"; do
 
   # Skapa welcome.txt
   {
-    echo "Välkommen $username"
-    echo "Andra användare i systemet:"
-    echo "$existing_users"
-  } > "$home_dir/welcome.txt"
+  echo "Välkommen $username"
+  cut -d: -f1 /etc/passwd
+} > "$home_dir/welcome.txt"
 
   # Rättigheter för welcome.txt
-  chmod 600 "$home_dir/welcome.txt"
+  chmod 700 "$home_dir/welcome.txt"
   chown "$username:$username" "$home_dir/welcome.txt"
 
 done
