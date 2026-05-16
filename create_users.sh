@@ -1,46 +1,35 @@
 #!/bin/bash
 
-# Kontrollera att scriptet körs som root
 if [ "$EUID" -ne 0 ]; then
-  echo "Fel: Scriptet måste köras som root."
   exit 1
 fi
 
-# Kontrollera att minst en användare skickats in
-if [ "$#" -eq 0 ]; then
-  echo "Användning: ./create_users.sh user1 user2 user3"
+if [ "$#" -lt 1 ]; then
   exit 1
 fi
 
-# Hämta befintliga systemanvändare
-existing_users=$(cut -d: -f1 /etc/passwd)
+for user in "$@"; do
 
-# Loopa igenom alla användarnamn
-for username in "$@"; do
-
-  if id "$username" &>/dev/null; then
-    echo "Användaren $username finns redan."
+  if id "$user" >/dev/null 2>&1; then
     continue
   fi
 
-  # Skapa användare
-  useradd -m -s /bin/bash "$username"
-  home_dir="/home/$username"
+  useradd -m -s /bin/bash "$user"
 
-  # Skapa mappar
-  mkdir -p "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
+  mkdir -p /home/$user/Documents
+  mkdir -p /home/$user/Downloads
+  mkdir -p /home/$user/Work
 
-  # Rättigheter
-  chmod 700 "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
-  chown -R "$username:$username" "$home_dir"
+  chmod 700 /home/$user/Documents
+  chmod 700 /home/$user/Downloads
+  chmod 700 /home/$user/Work
 
-  # Skapa welcome.txt
-  {
-    echo "Välkommen $username"
-    echo "$existing_users"
-  } > "$home_dir/welcome.txt"
+  chown -R $user:$user /home/$user
 
-  chmod 600 "$home_dir/welcome.txt"
-  chown "$username:$username" "$home_dir/welcome.txt"
+  echo "Välkommen $user" > /home/$user/welcome.txt
+  cut -d: -f1 /etc/passwd >> /home/$user/welcome.txt
+
+  chmod 644 /home/$user/welcome.txt
+  chown $user:$user /home/$user/welcome.txt
 
 done
