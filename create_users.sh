@@ -1,21 +1,33 @@
 #!/bin/bash
+# Skapar användare med katalogstruktur och welcome-fil
 
-for user in "$@"; do
-  if id "$user" >/dev/null 2>&1; then
-    continue
-  fi
+# Kontrollera root
+if [ "$EUID" -ne 0 ]; then
+  echo "Scriptet måste köras som root"
+  exit 1
+fi
 
-  useradd -m -s /bin/bash "$user"
+# Kontrollera att minst en användare skickas in
+if [ "$#" -lt 1 ]; then
+  echo "Användning: ./create_users.sh user1 user2"
+  exit 1
+fi
 
-  mkdir -p /home/$user/Documents /home/$user/Downloads /home/$user/Work
+for username in "$@"; do
+  # Skapa användare
+  useradd -m "$username"
 
-  chmod 700 /home/$user/Documents /home/$user/Downloads /home/$user/Work
+  home="/home/$username"
 
-  chown -R $user:$user /home/$user
+  # Skapa mappar
+  mkdir "$home/Documents" "$home/Downloads" "$home/Work"
 
-  echo "Välkommen $user" > /home/$user/welcome.txt
-  cut -d: -f1 /etc/passwd >> /home/$user/welcome.txt
+  # Rättigheter (endast ägare)
+  chmod 700 "$home/Documents" "$home/Downloads" "$home/Work"
 
-  chmod 644 /home/$user/welcome.txt
-  chown $user:$user /home/$user/welcome.txt
+  # Welcome-fil
+  echo "Välkommen $username" > "$home/welcome.txt"
+
+  # Ägarskap
+  chown -R "$username:$username" "$home"
 done
