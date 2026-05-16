@@ -1,48 +1,51 @@
 #!/bin/bash
-# Script för att skapa användare med katalogstruktur och welcome-fil
 
-# Kontrollera root
+# Script som skapar användare och deras katalogstruktur
+
+# Kontrollera att scriptet körs som root
 if [ "$EUID" -ne 0 ]; then
-  echo "Fel: Scriptet måste köras som root."
-  exit 1
+    echo "Detta script måste köras som root."
+    exit 1
 fi
 
-# Kontrollera argument
-if [ "$#" -lt 1 ]; then
-  echo "Användning: ./create_users.sh användare1 användare2"
-  exit 1
+# Kontrollera att minst en användare skickats in
+if [ "$#" -eq 0 ]; then
+    echo "Användning: $0 användare1 användare2 ..."
+    exit 1
 fi
 
-# Hämta befintliga användare
-existing_users=$(getent passwd | cut -d: -f1)
+for username in "$@"
+do
+    # Hämta lista över befintliga användare innan ny användare skapas
+    existing_users=$(cut -d: -f1 /etc/passwd | grep -v "^${username}$")
 
-for username in "$@"; do
+    # Skapa användaren om den inte redan finns
+    if ! id "$username" &>/dev/null; then
+        useradd -m "$username"
+    fi
 
-  if id "$username" &>/dev/null; then
-    echo "Användaren $username finns redan."
-    continue
-  fi
+    home_dir="/home/$username"
 
-  # Skapa användare med hemkatalog
-  useradd -m -s /bin/bash "$username"
+    # Skapa undermappar
+    mkdir -p "$home_dir/Documents"
+    mkdir -p "$home_dir/Downloads"
+    mkdir -p "$home_dir/Work"
 
-  home_dir="/home/$username"
+    # Sätt ägare
+    chown -R "$username:$username" "$home_dir"
 
-  # Skapa mappar
-  mkdir -p "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
+    # Sätt rättigheter (endast ägare)
+    chmod 700 "$home_dir/Documents"
+    chmod 700 "$home_dir/Downloads"
+    chmod 700 "$home_dir/Work"
 
-  # Sätt rättigheter
-  chmod 700 "$home_dir/Documents" "$home_dir/Downloads" "$home_dir/Work"
-  chown -R "$username:$username" "$home_dir"
+    # Skapa welcome.txt
+    {
+        echo "Välkommen $username"
+        echo "$existing_users"
+    } > "$home_dir/welcome.txt"
 
-  # Skapa welcome.txt
-  {
-    echo "Välkommen $username"
-    echo "Andra användare i systemet:"
-    echo "$existing_users"
-  } > "$home_dir/welcome.txt"
-
-  chmod 600 "$home_dir/welcome.txt"
-  chown "$username:$username" "$home_dir/welcome.txt"
-
+    # Sätt ägare och rättigheter på welcome-filen
+    chown "$username:$username" "$home_dir/welcome.txt"
+    chmod 600 "$home_dir/welcome.txt"
 done
